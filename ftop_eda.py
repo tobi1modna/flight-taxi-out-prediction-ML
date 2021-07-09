@@ -53,6 +53,7 @@ x = df.date.unique()
 plt.plot_date(x = x, y = y, fmt = 'k--x')
 plt.gcf().autofmt_xdate()
 plt.show()
+#non si vede alcun tipo di linearità
 
 
 df['Dew Point'] = df['Dew Point'].str.strip()
@@ -73,19 +74,20 @@ for column in categorical_labels:
     dummy_df[column] = dummy_encoder.fit_transform(df[column])
 dummy_df.head()
 
-
-#grafico in cui metto taxi out / scheduled departure time
-y = df['TAXI_OUT'].values.tolist()
-x = df['CRS_DEP_M'].values.tolist()
-plt.figure()
-plt.plot_date(x, y)
-plt.show()
-
-x = df.groupby('TAXI_OUT')
-y = df['DEP_DELAY'].values.tolist()
-plt.figure()
+sns.set()
+#grafico in cui metto taxi out / dep_delay
+y = df['TAXI_OUT'].unique()
+x = df[['DEP_DELAY', 'TAXI_OUT']].groupby('TAXI_OUT').mean()
+plt.figure(figsize=(10,10))
 plt.scatter(x, y)
 plt.show()
+#non si vede alcun tipo di linearità
+
+
+#pairplot
+#fig = plt.figure()
+#sns.pairplot(dummy_df)
+#plt.show()
 
 #quanto cambia la distribuzione considerando i giorni della settimana?
 
