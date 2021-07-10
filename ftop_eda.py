@@ -24,7 +24,7 @@ df.describe(include=object)
 
 #some queries on target variable
 print(df['TAXI_OUT'].mean())
-print(df['TAXI_OUT'])
+print(df['TAXI_OUT'].value_counts())
 
 airlines = df['OP_UNIQUE_CARRIER'].unique()
 len(airlines)
@@ -96,5 +96,70 @@ plt.show() #all day of week are at 20 of TAXI OUT MEAN VALUE
 
 df.groupby('MONTH')['TAXI_OUT'].mean().plot.bar()
 plt.show() #all 3 months are at 20 of TAXI OUT MEAN VALUE
+
+df.groupby('DAY_OF_MONTH')['TAXI_OUT'].mean().plot.bar()
+plt.show()
+
+df.groupby('OP_UNIQUE_CARRIER')['TAXI_OUT'].mean().plot.bar()
+plt.show()
+#Notiamo da questo grafico che la compagnia che tiene il TAXI_OUT medio più alto è AS.
+
+features = ['DISTANCE', 'sch_dep', 'sch_arr', 'TAXI_OUT']
+df[features].hist()
+df[features].plot(kind = 'density', subplots = True, layout = (2, 2), sharex = False)
+plt.show()
+
+sns.boxplot(x='TAXI_OUT', data = df)
+sns.violinplot(data = df['TAXI_OUT'])
+plt.show()
+#notiamo che sulla variabil target i valori sono ben distribuiti e ci sono pochissimi outliers
+
+
+
+#MATRICE DI CORRELAZIONE
+
+correlation_matrix = dummy_df.corr()
+sns.heatmap(correlation_matrix, cmap='RdYlGn')
+plt.show()
+#practically we don't have any strong correlation except wind gust/wind speed and temperature/dew point
+
+
+#which Features shows perfect correlation with "TAXI_OUT"?
+plt.figure(figsize=(8, 12))
+heatmap = sns.heatmap(dummy_df.corr()[['TAXI_OUT']].sort_values(by='TAXI_OUT', ascending=False), vmin=-1, vmax=1, annot=True, cmap='BrBG')
+heatmap.set_title('Features Correlating with TAXI_OUT', fontdict={'fontsize':18}, pad=16);
+plt.show()
+#ZERO CORRELATIONS WITH TARGET VARIABLE
+
+# save heatmap as .png file
+plt.savefig('heatmap.png', dpi=300, bbox_inches='tight')
+
+
+
+nums = ['DISTANCE', 'Temperature', 'Dew Point', 'Humidity', 'Wind Speed', 'Wind Gust', 'Pressure', 'sch_dep', 'sch_arr', 'TAXI_OUT']
+sns.set(style = 'ticks', color_codes = True)
+sns.pairplot(df[nums])
+plt.show()
+
+
+
+#SCATTER AND DENSITY PLOT
+num = df.select_dtypes(include = [np.number])
+colnames = list(num)
+print(colnames)
+colnames.remove('MONTH')
+colnames.remove('DAY_OF_MONTH')
+colnames.remove('DAY_OF_WEEK')
+if len(colnames) > 10:
+    colnames = colnames[:10]
+num = num[colnames]
+ax = pd.plotting.scatter_matrix(num, alpha = 0.75, figsize=[20, 20], diagonal='kde')
+corrs = num.corr().values
+for i, j in zip(*plt.np.triu_indices_from(ax, k = 1)):
+    ax[i, j].annotate('Corr. coef = %.3f' % corrs[i, j], (0.8, 0.2), xycoords = 'axes fraction', ha = 'center', va = 'center', size = 10)
+plt.suptitle('scatter and density plot')
+plt.show()
+
+
 
 df.shape
