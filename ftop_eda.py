@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestRegressor
 
 pd.set_option('display.expand_frame_repr',
               False)  # to show all the columns in the console
@@ -216,3 +217,40 @@ ax = sns.catplot(y="TAXI_OUT",
 plt.show()
 
 df.shape
+
+# Feature Importance (it will be clearer later...) #####################################################################
+params = {'random_state': 0,
+          'n_jobs': 4,
+          'n_estimators': 5000,
+          'max_depth': 8}
+# One-hot encode
+# df = pd.get_dummies(df)
+# Drop redundant columns (for features with two unique values)
+
+dummy_df.fillna(method='ffill', inplace=True)
+
+drop = ['TAXI_OUT',
+        'CRS_DEP_M',
+        'DEP_TIME_M',
+        'CRS_ELAPSED_TIME',
+        'CRS_ARR_M',
+        'date',
+        'YEAR']
+
+x, y = dummy_df.drop(drop,
+                     axis=1), \
+       dummy_df['TAXI_OUT']
+
+# Fit RandomForest Regressor
+clf = RandomForestRegressor(**params)
+clf = clf.fit(x, y)
+x.dtypes
+# Plot features importances
+imp = pd.Series(data=clf.feature_importances_, index=x.columns).sort_values(ascending=False)
+plt.figure(figsize=(10, 12))
+plt.title("Feature importance")
+ax = sns.barplot(y=imp.index,
+                 x=imp.values,
+                 palette="Blues_d",
+                 orient='h')
+plt.show()
