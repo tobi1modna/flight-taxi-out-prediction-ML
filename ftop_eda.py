@@ -218,14 +218,12 @@ plt.show()
 
 df.shape
 
-# Feature Importance (it will be clearer later...) #####################################################################
+# Feature Importance
 params = {'random_state': 0,
           'n_jobs': 4,
           'n_estimators': 5000,
           'max_depth': 8}
-# One-hot encode
-# df = pd.get_dummies(df)
-# Drop redundant columns (for features with two unique values)
+
 
 dummy_df.fillna(method='ffill', inplace=True)
 
