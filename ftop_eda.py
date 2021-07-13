@@ -76,15 +76,15 @@ df.info()
 print(df.dtypes)
 
 # dummyzzazione con label encoder
-dummy_df = df.copy()
-dummy_encoder = LabelEncoder()
-categorical = (dummy_df.dtypes == 'object')
+labeled_df = df.copy()
+label_encoder = LabelEncoder()
+categorical = (labeled_df.dtypes == 'object')
 categorical_labels = list(categorical[categorical].index)
 del categorical_labels[2:6]
 print(categorical_labels)
 for column in categorical_labels:
-    dummy_df[column] = dummy_encoder.fit_transform(df[column])
-dummy_df.head()
+    labeled_df[column] = label_encoder.fit_transform(df[column])
+labeled_df.head()
 
 sns.set()
 # grafico in cui metto taxi out / dep_delay
@@ -138,7 +138,7 @@ plt.show()
 
 # MATRICE DI CORRELAZIONE
 
-correlation_matrix = dummy_df.corr()
+correlation_matrix = labeled_df.corr()
 sns.heatmap(correlation_matrix,
             cmap='RdYlGn')
 plt.show()
@@ -147,8 +147,8 @@ plt.show()
 
 # which Features shows perfect correlation with "TAXI_OUT"?
 plt.figure(figsize=(8, 12))
-heatmap = sns.heatmap(dummy_df.corr()[['TAXI_OUT']].sort_values(by='TAXI_OUT',
-                                                                ascending=False),
+heatmap = sns.heatmap(labeled_df.corr()[['TAXI_OUT']].sort_values(by='TAXI_OUT',
+                                                                  ascending=False),
                       vmin=-1,
                       vmax=1,
                       annot=True,
@@ -225,7 +225,7 @@ params = {'random_state': 0,
           'max_depth': 8}
 
 
-dummy_df.fillna(method='ffill', inplace=True)
+labeled_df.fillna(method='ffill', inplace=True)
 
 drop = ['TAXI_OUT',
         'CRS_DEP_M',
@@ -235,9 +235,9 @@ drop = ['TAXI_OUT',
         'date',
         'YEAR']
 
-x, y = dummy_df.drop(drop,
-                     axis=1), \
-       dummy_df['TAXI_OUT']
+x, y = labeled_df.drop(drop,
+                       axis=1), \
+       labeled_df['TAXI_OUT']
 
 # Fit RandomForest Regressor
 clf = RandomForestRegressor(**params)
