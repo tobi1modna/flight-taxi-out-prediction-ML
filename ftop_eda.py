@@ -1,3 +1,4 @@
+import numpy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,14 +36,14 @@ counts.plot(kind='barh')
 plt.show()
 # VEDO CHE IL NUMERO DI FLIGHTS CHE ABBIAMO NON è BILANCIATISSIMO RISPETTO A QUALI COMPAGNIE CONSIDERIAMO
 
-df['CRS_DEP_M'] = pd.to_datetime(df.CRS_DEP_M,
-                                 unit='m').dt.strftime('%H:%M')
-df['DEP_TIME_M'] = pd.to_datetime(df.DEP_TIME_M,
-                                  unit='m').dt.strftime('%H:%M')
-df['CRS_ELAPSED_TIME'] = pd.to_datetime(df.CRS_ELAPSED_TIME,
-                                        unit='m').dt.strftime('%H:%M')
-df['CRS_ARR_M'] = pd.to_datetime(df.CRS_ARR_M,
-                                 unit='m').dt.strftime('%H:%M')
+#df['CRS_DEP_M'] = pd.to_datetime(df.CRS_DEP_M,
+                                 #unit='m').dt.strftime('%H:%M')
+#df['DEP_TIME_M'] = pd.to_datetime(df.DEP_TIME_M,
+                                  #unit='m').dt.strftime('%H:%M')
+#df['CRS_ELAPSED_TIME'] = pd.to_datetime(df.CRS_ELAPSED_TIME,
+                                        #unit='m').dt.strftime('%H:%M')
+#df['CRS_ARR_M'] = pd.to_datetime(df.CRS_ARR_M,
+                                 #unit='m').dt.strftime('%H:%M')
 print(df.head())
 
 df.drop('TAIL_NUM',
@@ -55,6 +56,9 @@ df['YEAR'] = np.where(df['MONTH'] == 1,
                       2019)  # we have only january, december and november so if month == january then year = 2020
 df['date'] = pd.to_datetime(df.YEAR * 10000 + df.MONTH * 100 + df.DAY_OF_MONTH,
                             format='%Y%m%d')
+df.drop('YEAR',
+        axis = 1,
+        inplace = True)
 df.head()
 
 y = df[['date', 'TAXI_OUT']].groupby('date').mean()
@@ -75,7 +79,7 @@ df['Dew Point'] = df['Dew Point'].astype(int)
 df.info()
 print(df.dtypes)
 
-# dummyzzazione con label encoder
+# dummizzazione con label encoder
 labeled_df = df.copy()
 label_encoder = LabelEncoder()
 categorical = (labeled_df.dtypes == 'object')
@@ -138,9 +142,11 @@ plt.show()
 
 # MATRICE DI CORRELAZIONE
 
+plt.figure(figsize = (20,17))
 correlation_matrix = labeled_df.corr()
 sns.heatmap(correlation_matrix,
-            cmap='RdYlGn')
+            cmap='RdYlGn',
+            annot = True)
 plt.show()
 # practically we don't have any strong correlation except wind gust/wind speed and temperature/dew point
 
@@ -160,10 +166,7 @@ heatmap.set_title('Features Correlating with TAXI_OUT',
 plt.show()
 # ZERO CORRELATIONS WITH TARGET VARIABLE
 
-# save heatmap as .png file
-plt.savefig('heatmap.png',
-            dpi=300,
-            bbox_inches='tight')
+
 
 nums = ['DISTANCE',
         'Temperature',
@@ -182,28 +185,22 @@ sns.set(style='ticks',
 sns.pairplot(df[nums])
 plt.show()
 
+
+
 # SCATTER AND DENSITY PLOT
 num = df.select_dtypes(include=[np.number])
-colnames = list(num)
-print(colnames)
-colnames.remove('MONTH')
-colnames.remove('DAY_OF_MONTH')
-colnames.remove('DAY_OF_WEEK')
-if len(colnames) > 10:
-    colisnames = colnames[:10]
-num = num[colnames]
-ax = pd.plotting.scatter_matrix(num,
-                                alpha=0.75,
-                                figsize=[20, 20],
-                                diagonal='kde')
-corrs = num.corr().values
-for i, j in zip(*plt.np.triu_indices_from(ax, k=1)):
-    ax[i, j].annotate('Corr. coef = %.3f' % corrs[i, j],
-                      (0.8, 0.2),
-                      xycoords='axes fraction',
-                      ha='center',
-                      va='center',
-                      size=10)
+
+np.seterr(divide = 'ignore')
+num['NEW'] = np.sqrt(num['DEP_DELAY'])
+sns.boxplot(x='NEW',
+            data=num)
+plt.show()
+
+sns.pairplot(num, diag_kind = 'kde')
+#ax = pd.plotting.scatter_matrix(num,
+#                                alpha=0.75,
+#                                figsize=[20, 20],
+#                                diagonal='kde')
 
 plt.suptitle('scatter and density plot')
 plt.show()
