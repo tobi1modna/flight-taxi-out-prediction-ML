@@ -5,9 +5,10 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import Lasso, Ridge, LinearRegression
+from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.svm import SVR
 from sklearn import metrics
 from yellowbrick.regressor import ResidualsPlot
 
@@ -39,7 +40,7 @@ plt.show()
 dummy_df = pd.get_dummies(df)
 
 
-#########################    ENCODING CATEGORICAL FEATURES WITH LABEL ENCODER     ########################
+#########################           ENCODING CATEGORICAL FEATURES WITH LABEL ENCODER              ########################
 
 labeled_df = df.copy()
 label_encoder = LabelEncoder()
@@ -121,12 +122,6 @@ def feature_importance():
     #con labeled ha fatto prestissimo RMSE 6.877
     #con dummy ci mette lo stesso tempo RMSE 6.874
 
-
-
-
-
-
-
     #provo nel labeled a vedere quanto tempo ci mette una RANDOM FOREST
     rf = RandomForestRegressor()
     x = labeled_df.drop('TAXI_OUT', axis=1)
@@ -140,8 +135,6 @@ def feature_importance():
     print('RMSE: ', metrics.mean_squared_error(y_val, y_pred, squared=False))
     #con labeled 30 secondi circa RMSE:  5.7076
     #con dummy ci mette lo stesso tempo 1 minuto circa
-
-
 
 
 

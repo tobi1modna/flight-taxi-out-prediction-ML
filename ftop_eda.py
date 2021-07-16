@@ -202,7 +202,7 @@ sns.pairplot(num, diag_kind = 'kde')
 #                                figsize=[20, 20],
 #                                diagonal='kde')
 
-plt.suptitle('scatter and density plot')
+plt.suptitle<('scatter and density plot')
 plt.show()
 
 ax = sns.catplot(y="TAXI_OUT",
