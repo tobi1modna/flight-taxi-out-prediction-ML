@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 from sklearn.neural_network import MLPRegressor
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV, KFold
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.svm import SVR
@@ -13,6 +14,10 @@ from sklearn import metrics
 from yellowbrick.regressor import ResidualsPlot
 
 random_state = 17
+np.random.seed(17)
+# imposto il np random seed perchè gridSearchCv per la cross-validation
+# non accetta il random state come parametro ma lavora direttamente con il seed di numpy
+# lo imposto in modo tale da avere consistenza di risultati da un tentativo all'altro.
 
 pd.set_option('display.expand_frame_repr',
               False)  # to show all the columns in the console
@@ -78,71 +83,6 @@ labeled_df['DEP_DELAY'] = x_logged.tolist()#il problema dell'errore che dava qui
 # noto che la distribuzione è parecchio migliorata rispetto a prima.
 # num è quindi il dataframe solo numerico che andrà in pasto al minmax scaler per comporre il set preprocessato
 
-
-
-def feature_importance():
-
-    params = {'random_state': 0,
-              'n_jobs': 4,
-              'n_estimators': 5000,
-              'max_depth': 8}
-
-    # Feature Importance WITH LABEL ENCODER
-    labeled_df.fillna(method='ffill', inplace=True)
-
-    drop = ['TAXI_OUT']
-
-    x, y = labeled_df.drop(drop,
-                           axis=1), \
-           labeled_df['TAXI_OUT']
-
-    # Fit RandomForest Regressor
-    clf = RandomForestRegressor(**params)
-    clf = clf.fit(x, y)
-    x.dtypes
-    # Plot features importances
-    imp = pd.Series(data=clf.feature_importances_, index=x.columns).sort_values(ascending=False)
-    plt.figure(figsize=(10, 12))
-    plt.title("Feature importance")
-    ax = sns.barplot(y=imp.index,
-                     x=imp.values,
-                     palette="Blues_d",
-                     orient='h')
-    plt.show()
-
-
-    #provo nel labeled a vedere quanto tempo ci mette una RANDOM FOREST
-    rf = RandomForestRegressor()
-    x = labeled_df.drop('TAXI_OUT', axis=1)
-    y = labeled_df['TAXI_OUT']
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=0)
-    rf.fit(x_train, y_train)
-    y_pred = rf.predict(x_val)
-    print(y_pred)
-    print(y_val)
-
-    print('RMSE: ', metrics.mean_squared_error(y_val, y_pred, squared=False))
-    #con labeled 30 secondi circa RMSE:  5.7076
-    #con dummy ci mette lo stesso tempo 1 minuto circa
-
-
-
-    #provo nel labeled a vedere quanto tempo ci mette una SVM
-    svr = SVR()
-    x = labeled_df.drop('TAXI_OUT', axis=1)
-    y = labeled_df['TAXI_OUT']
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=0)
-    svr.fit(x_train, y_train)
-    y_pred = svr.predict(x_val)
-    print(y_pred)
-    print(y_val)
-
-    print('RMSE: ', metrics.mean_squared_error(y_val, y_pred, squared=False))
-    #con labeled 1 minuto e 15  RMSE:  6.8467
-    #con dummy 2 minuti e 50 secondi RMSE: 6.8585
-
-
-
 ##################################################################################################################
 #                                      CONTROLLO SE CE' LINEARITA' NEI DATI                                      #
 ##################################################################################################################
@@ -158,10 +98,12 @@ y = labeled_df['TAXI_OUT']
 
 X_train_raw, X_test_raw, y_train, y_test = train_test_split(X, y, random_state=random_state, test_size=0.2)
 
-minmaxScal = MinMaxScaler()
-minmaxScal.fit(X_train_raw[numerical_labels].astype('float64'))
-X_train_scaled_num = pd.DataFrame(minmaxScal.transform(X_train_raw[numerical_labels].astype('float64')), columns=numerical_labels)
-X_test_scaled_num = pd.DataFrame(minmaxScal.transform(X_test_raw[numerical_labels].astype('float64')), columns=numerical_labels)
+# per la standardizzazione utilizzo lo standard Scaler perchè sulla documentazione di scikit learn
+# consiglia di standardizzare con questo se viene utilizzata la Lasso Regression.
+stdScal = StandardScaler()
+stdScal.fit(X_train_raw[numerical_labels].astype('float64'))
+X_train_scaled_num = pd.DataFrame(stdScal.transform(X_train_raw[numerical_labels].astype('float64')), columns=numerical_labels)
+X_test_scaled_num = pd.DataFrame(stdScal.transform(X_test_raw[numerical_labels].astype('float64')), columns=numerical_labels)
 
 X_train_raw.reset_index(drop = True, inplace = True)
 X_test_raw.reset_index(drop = True, inplace = True)
@@ -174,18 +116,92 @@ X_test_scaled = pd.concat([X_test_scaled_num, X_test_raw[categorical_labels]], a
 ##################################################################################################################
 #                                                     MODELS                                                     #
 ##################################################################################################################
-
-lasso_model = Lasso()
-svm_model = SVR()
-nn_model = MLPRegressor()
-
-##################################################################################################################
+#                                                                                                                #
 #                                      CROSS-VALIDATION FOR MODEL SELECTION                                      #
+#                                                                                                                #
 ##################################################################################################################
 
-## PER LASSO POTRO FARE O CONTROLLO CON LASSOCV E KFOLD, POI CONFRONTO GLI ALPHA, OPPURE USO SOLO GRIDCV
-# E VADO CON IL METODO DEI RAFFINAMENTI SUCCESSIVI. MI SEMBRA LA SCELTA MIGLIORE.
+lasso_raw_model = Lasso(random_state=random_state)
+lasso_std_model = Lasso(random_state=random_state)
+knn_model = KNeighborsRegressor()
+knn_std_model = KNeighborsRegressor()
+svm_model = SVR()
+svm_std_model = SVR()
+nn_model = MLPRegressor(random_state=random_state)
+nn_std_model = MLPRegressor()
+
+#---------  1: LASSO RAW ---------------------------------------------------------
+
+alphas = np.arange(0.0001, 0.1, 0.0005)
+# ho provato con questi range e il migliore è 0.0016 quindi ora raffino il range e riprovo
+alphas = np.round(np.arange(0.0007, 0.003, 0.0001), 5)
+# con questo range il valore di alpha migliore è rimasto 0.0016
+# Quindi confermo questo iperparametro.
+parameters = {'alpha' : alphas}
+
+lasso_raw = GridSearchCV(estimator=lasso_raw_model, param_grid=parameters, scoring='r2')
+lasso_raw.fit(X_train_raw, y_train)
+
+print('Lasso With raw data')
+print('Overall, the best value for parameter alpha is ', lasso_raw.best_params_.get('alpha'),
+      ' since it leads to r2-score = ', lasso_raw.best_score_, '\n')
+
+#---------  2: LASSO PRE-PROCESSED -----------------------------------------------
+
+alphas = np.arange(0.0001, 0.1, 0.0005)
+# ho provato con questi range e il migliore è 0.0056 quindi ora raffino il range e riprovo
+alphas = np.arange(0.0001, 0.01, 0.0001)
+# con questo range il valore di alpha migliore è 0.0057, molto simile al primo.
+# Quindi confermo questo iperparametro.
+parameters = {'alpha' : alphas}
+
+lasso_std = GridSearchCV(estimator=lasso_std_model, param_grid=parameters, scoring='r2')
+lasso_std.fit(X_train_scaled, y_train)
+
+print('Lasso preprocessed data')
+print('Overall, the best value for parameter alpha is ', lasso_std.best_params_.get('alpha'),
+      ' since it leads to r2-score = ', lasso_std.best_score_, '\n')
+
+#---------  3: KNN RAW ---------------------------------------------------------
+
+parameters = {'n_neighbors': list(range(1, 12, 2))}
+
+knn_raw = GridSearchCV(estimator=knn_model, param_grid=parameters, scoring='neg_root_mean_squared_error')
+knn_raw.fit(X_train_raw, y_train)
+
+print('KNN With raw data')
+print('Overall, the best value for parameter K is ', knn_raw.best_params_.get('n_neighbors'),
+      ' since it leads to r2-score = ', knn_raw.best_score_, '\n')
+
+# SVM ANCHE ADDESTRANDO SOLO UN MODELLO, SENZA CROSS-VALIDATION, E CON TOLLERANZA MOLTO ALTA (1)
+# CON KERNEL LINEARE, CI METTE PIU DI MEZZORA NON SO QUANTO NON HA MAI FINITO.
+
+# MENTRE KNN HA UN TEMPO MOLTO ACCETTABILE
 
 
 
+
+
+#---------  5: MLPRegressor RAW ---------------------------------------------------------
+
+nn_model.fit(X_train_raw, y_train)
+
+
+
+
+#parameters = {'hidden_layer_sizes': ['linear'], 'activation': 'identity'}
+parameters = {'activation': ['identity', 'logistic', 'tanh', 'relu']}
+
+nn_raw = GridSearchCV(estimator=nn_model, param_grid=parameters, scoring='r2')
+nn_raw.fit(X_train_raw, y_train)
+
+print('NN With raw data')
+print('Overall, the best value for parameter activation is ', nn_raw.best_params_.get('activation'),
+      ' since it leads to r2-score = ', nn_raw.best_score_, '\n')
+
+#CI HA MESSO CIRCA 3 MINUTI E L'OUTPUT è STATO:
+#NN With raw data
+#Overall, the best value for parameter activation is  logistic  since it leads to r2-score =  0.06788356737736634
+
+#DATI I TEMPI POSSO PERMETTERMI DI TESTARE MOLTI PIU' IPERPARAMETRI SULLA RETE NEURALE
 
