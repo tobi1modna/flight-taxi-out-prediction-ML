@@ -148,7 +148,7 @@ sns.heatmap(correlation_matrix,
             cmap='RdYlGn',
             annot = True)
 plt.show()
-# practically we don't have any strong correlation except wind gust/wind speed and temperature/dew point
+# we have a strong correlation between distance and elapsed time
 
 
 # which Features shows perfect correlation with "TAXI_OUT"?

@@ -6,22 +6,29 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.svm import SVR
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV, KFold
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.svm import SVR
 from sklearn import metrics
 from yellowbrick.regressor import ResidualsPlot
 
+random_state = 17
+
 pd.set_option('display.expand_frame_repr',
               False)  # to show all the columns in the console
 sns.set(style="white")
 
+
 df = pd.read_csv('dataset/M1_final.csv')
 
-df.dropna(axis=0, inplace=True)
+##################################################################################################################
+#                                              PRE-PROCESSING                                                   #
+##################################################################################################################
+
+df.dropna(axis=0, inplace = True)
 df.drop('TAIL_NUM',
         axis=1,
-        inplace=True)
+        inplace = True)
 df['Dew Point'] = df['Dew Point'].str.strip()
 df['Dew Point'] = df['Dew Point'].astype(int)
 
@@ -32,16 +39,45 @@ df.drop(['DISTANCE'], axis = 1,
         inplace = True)
 
 
-#########################           ENCODING CATEGORICAL FEATURES WITH LABEL ENCODER              ########################
+## ENCODING CATEGORICAL FEATURES WITH LABEL ENCODER
 
 labeled_df = df.copy()
 label_encoder = LabelEncoder()
 categorical = (labeled_df.dtypes == 'object')
-print(categorical)
+numerical = (labeled_df.dtypes != 'object')
 categorical_labels = list(categorical[categorical].index)
+numerical_labels = list(numerical[numerical].index)
+numerical_labels.remove('TAXI_OUT')
 print(categorical_labels)
 for column in categorical_labels:
     labeled_df[column] = label_encoder.fit_transform(df[column])
+
+
+#guardando il grafico distribuzione di departure delay, noto che è sbilanciatissimo sull'asse x, tutto attaccato all'asse y.
+# Inoltre lungo la lunghezza dell'asse x noto che sono quasi tutti outliers (si vede bene dal box plot)
+# Decido quindi di applicare qualche trasformazione su questa feature, in modo da rendere la distribuzione un po'
+# più simile ad una gaussiana, per quanto possibile. Questa operazione la considero come parte dei dati raw (non standardizzati)
+# quindi per i modelli che utilizzano i dati raw, questa modifica sarà apportata.
+###DEPARTURE DELAY HO FATTO LO SCALING PER TOGLIERE I VALORI NEGATIVI POI HO FATTO ESPONENZIALE E LOGARITMO
+x = labeled_df['DEP_DELAY'].values.reshape(28818, 1)
+np.amin(x)
+x = x + np.abs(np.amin(x))
+x_logged = np.log(x + 1)
+sns.distplot(x)
+plt.show()
+sns.boxplot(x)
+plt.show()
+sns.distplot(x_logged)
+plt.show()
+sns.boxplot(x_logged)
+plt.show()
+#LA RE-INSERISCO NEL DATAFRAME
+x_logged = x_logged.reshape(28818,)
+labeled_df['DEP_DELAY'] = x_logged.tolist()#il problema dell'errore che dava qui l'ho risolto inizializzando num con una copia profonda di df
+
+# noto che la distribuzione è parecchio migliorata rispetto a prima.
+# num è quindi il dataframe solo numerico che andrà in pasto al minmax scaler per comporre il set preprocessato
+
 
 
 def feature_importance():
@@ -108,45 +144,48 @@ def feature_importance():
 
 
 ##################################################################################################################
-#                                CONTROLLO SE CE' LINEARITA' NEI DATI                                            #
+#                                      CONTROLLO SE CE' LINEARITA' NEI DATI                                      #
 ##################################################################################################################
 
 
-
-
-
-
-
-
 ##################################################################################################################
-#                                              PRE-PROCESSING                                                   #
+#                                        SPLITTING   &   PREPROCESSING 2                                         #
 ##################################################################################################################
 
+X = labeled_df.copy()
+X.drop('TAXI_OUT', axis = 1, inplace = True)
+y = labeled_df['TAXI_OUT']
 
-num = df.copy()
-num = num.select_dtypes(include=[np.number])
+X_train_raw, X_test_raw, y_train, y_test = train_test_split(X, y, random_state=random_state, test_size=0.2)
+
+minmaxScal = MinMaxScaler()
+minmaxScal.fit(X_train_raw[numerical_labels].astype('float64'))
+X_train_scaled_num = pd.DataFrame(minmaxScal.transform(X_train_raw[numerical_labels].astype('float64')), columns=numerical_labels)
+X_test_scaled_num = pd.DataFrame(minmaxScal.transform(X_test_raw[numerical_labels].astype('float64')), columns=numerical_labels)
+
+X_train_raw.reset_index(drop = True, inplace = True)
+X_test_raw.reset_index(drop = True, inplace = True)
+y_train.reset_index(drop = True, inplace = True)
+y_test.reset_index(drop = True, inplace = True)
+
+X_train_scaled = pd.concat([X_train_scaled_num, X_train_raw[categorical_labels]], axis = 1)
+X_test_scaled = pd.concat([X_test_scaled_num, X_test_raw[categorical_labels]], axis = 1)
+
+##################################################################################################################
+#                                                     MODELS                                                     #
+##################################################################################################################
+
+lasso_model = Lasso()
+svm_model = SVR()
+nn_model = MLPRegressor()
+
+##################################################################################################################
+#                                      CROSS-VALIDATION FOR MODEL SELECTION                                      #
+##################################################################################################################
+
+## PER LASSO POTRO FARE O CONTROLLO CON LASSOCV E KFOLD, POI CONFRONTO GLI ALPHA, OPPURE USO SOLO GRIDCV
+# E VADO CON IL METODO DEI RAFFINAMENTI SUCCESSIVI. MI SEMBRA LA SCELTA MIGLIORE.
 
 
-###DEPARTURE DELAY HO FATTO LO SCALING PER TOGLIERE I VALORI NEGATIVI POI HO FATTO ESPONENZIALE E LOGARITMO
-x = num['DEP_DELAY'].values.reshape(28818, 1)
-scaler = MinMaxScaler()
-x_scaled = scaler.fit_transform(x.astype('float64'))
-num['new'] = x_scaled
-x_logged = np.log(x_scaled + 1)
-xx = (x_logged)**(1/5)
-sns.distplot(xx)
-plt.show()
-sns.boxplot(x)
-plt.show()
-sns.boxplot(xx)
-plt.show()
-#LA RE-INSERISCO NEL DATAFRAME
-xx = xx.reshape(28818,)
-num['DEP_DELAY'] = xx.tolist()#il problema dell'errore che dava qui l'ho risolto inizializzando num con una copia profonda di df
-
-
-#########################################################################
-#                        INIZIO CON I MODELLI                          #
-#########################################################################
 
 
