@@ -3,13 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV, KFold
+from sklearn.model_selection import train_test_split, GridSearchCV, validation_curve
 from sklearn.linear_model import Lasso, LinearRegression
-from sklearn.svm import SVR
+from sklearn.ensemble import AdaBoostRegressor, BaggingRegressor
 from sklearn import metrics
 from yellowbrick.regressor import ResidualsPlot
 
@@ -118,17 +117,48 @@ X_test_scaled = pd.concat([X_test_scaled_num, X_test_raw[categorical_labels]], a
 ##################################################################################################################
 #                                                                                                                #
 #                                      CROSS-VALIDATION FOR MODEL SELECTION                                      #
+#                                                       +                                                        #
+#                                                    TRAINING                                                    #
 #                                                                                                                #
 ##################################################################################################################
 
 lasso_raw_model = Lasso(random_state=random_state)
 lasso_std_model = Lasso(random_state=random_state)
-knn_model = KNeighborsRegressor()
+knn_raw_model = KNeighborsRegressor()
 knn_std_model = KNeighborsRegressor()
-svm_model = SVR()
-svm_std_model = SVR()
-nn_model = MLPRegressor(random_state=random_state)
-nn_std_model = MLPRegressor()
+mlp_raw_model = MLPRegressor(early_stopping=True,
+                             solver='sgd',
+                             validation_fraction=0.125,  #perchè il 10% del dataset (per la validation) equivale al 12.5% del training set
+                             verbose=True,
+                             max_iter=1000,
+                             random_state=random_state)
+mlp_std_model = MLPRegressor(early_stopping=True,
+                             solver='sgd',
+                             validation_fraction=0.125,  #perchè il 10% del dataset (per la validation) equivale al 12.5% del training set
+                             verbose=True,
+                             max_iter=1000,
+                             random_state=random_state)
+
+def cv_model(model, h_params, X_train, y_train):
+    model_cv = GridSearchCV(estimator=model, param_grid=h_params, scoring='neg_root_mean_squared_error')
+    print('Fitting all models ...  ...  ...')
+    model_cv.fit(X_train, y_train)
+    return model_cv
+
+def print_cv_result(model_cv, desc):
+    print(desc)
+    for param in model_cv.best_params_.keys():
+        print('best -', param, 'is', model_cv.best_params_.get(param))
+    print('These parameters scored a negative-RMSE of -->', model_cv.best_score_, '\n')
+
+def print_metrics(desc, y_test, y_pred):
+    print(desc, 'metrics:')
+    print('RMSE -->', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+    print('R2-score -->', metrics.r2_score(y_test, y_pred))
+
+
+# come metrica per lo scoring di cross-validation utilizzerò RMSE perchè voglio confrontare le
+# performance tra i vari modelli, e voglio che gli errori più grandi abbiano più peso. (MAE non va bene).
 
 #---------  1: LASSO RAW ---------------------------------------------------------
 
@@ -139,12 +169,10 @@ alphas = np.round(np.arange(0.0007, 0.003, 0.0001), 5)
 # Quindi confermo questo iperparametro.
 parameters = {'alpha' : alphas}
 
-lasso_raw = GridSearchCV(estimator=lasso_raw_model, param_grid=parameters, scoring='r2')
-lasso_raw.fit(X_train_raw, y_train)
+lasso_raw = cv_model(lasso_raw_model, parameters, X_train_raw, y_train)
+print_cv_result(lasso_raw, 'LASSO Regression (RAW DATA)')
 
-print('Lasso With raw data')
-print('Overall, the best value for parameter alpha is ', lasso_raw.best_params_.get('alpha'),
-      ' since it leads to r2-score = ', lasso_raw.best_score_, '\n')
+# neg-RMSE =  -6.567514581292189
 
 #---------  2: LASSO PRE-PROCESSED -----------------------------------------------
 
@@ -155,53 +183,110 @@ alphas = np.arange(0.0001, 0.01, 0.0001)
 # Quindi confermo questo iperparametro.
 parameters = {'alpha' : alphas}
 
-lasso_std = GridSearchCV(estimator=lasso_std_model, param_grid=parameters, scoring='r2')
-lasso_std.fit(X_train_scaled, y_train)
+lasso_std = cv_model(lasso_std_model, parameters, X_train_scaled, y_train)
+print_cv_result(lasso_std, 'LASSO Regression (PRE-PROCESSED DATA)')
 
-print('Lasso preprocessed data')
-print('Overall, the best value for parameter alpha is ', lasso_std.best_params_.get('alpha'),
-      ' since it leads to r2-score = ', lasso_std.best_score_, '\n')
+# neg-RMSE =  -6.5672752218770025
+#migliore
 
-#---------  3: KNN RAW ---------------------------------------------------------
+#---------  4: KNN RAW ---------------------------------------------------------
 
-parameters = {'n_neighbors': list(range(1, 12, 2))}
+parameters = {'n_neighbors': list(range(1, 12, 2)), 'weights': ['uniform', 'distance']}
 
-knn_raw = GridSearchCV(estimator=knn_model, param_grid=parameters, scoring='neg_root_mean_squared_error')
-knn_raw.fit(X_train_raw, y_train)
+knn_raw = cv_model(knn_raw_model, parameters, X_train_raw, y_train)
+print_cv_result(knn_raw, 'KNN Regressor (RAW DATA)')
 
-print('KNN With raw data')
-print('Overall, the best value for parameter K is ', knn_raw.best_params_.get('n_neighbors'),
-      ' since it leads to r2-score = ', knn_raw.best_score_, '\n')
+# neg-RMSE = -6.610380820947623
+#migliore
 
-# SVM ANCHE ADDESTRANDO SOLO UN MODELLO, SENZA CROSS-VALIDATION, E CON TOLLERANZA MOLTO ALTA (1)
-# CON KERNEL LINEARE, CI METTE PIU DI MEZZORA NON SO QUANTO NON HA MAI FINITO.
+#---------  5: KNN PRE-PROCESSED ---------------------------------------------------------
 
-# MENTRE KNN HA UN TEMPO MOLTO ACCETTABILE
+parameters = {'n_neighbors': list(range(1, 12, 2)), 'weights': ['uniform', 'distance']}
+
+knn_std = cv_model(knn_std_model, parameters, X_train_scaled, y_train)
+print_cv_result(knn_std, 'KNN Regressor (PRE-PROCESSED DATA)')
+
+# neg-RMSE = -6.63741941865838
+
+#---------  7: MLPRegressor RAW ---------------------------------------------------------
+
+h_layers = [(500,),(200,),(200,200),(100, 100),(200, 100, 100),(50, 50, 50, 50),(25, 25, 25, 25, 25, 25, 25, 25)]
+parameters = {'hidden_layer_sizes': h_layers, 'activation': ['identity','tanh', 'relu','logistic']}
+#best = 100,100 , tanh
+
+mlp_raw = cv_model(mlp_raw_model, parameters, X_train_raw, y_train)
+print_cv_result(mlp_raw, 'Neural-Network MLP Regressor (RAW DATA)')
+
+# neg-RMSE =  -6.87219092230963
 
 
+#---------  8: MLPRegressor PRE-PROCESSED ---------------------------------------------------------
+
+h_layers = [(500,),(200,),(200,200),(100, 100),(200, 100, 100),(50, 50, 50, 50),(25, 25, 25, 25, 25, 25, 25, 25)]
+parameters = {'hidden_layer_sizes': h_layers, 'activation': ['identity','tanh', 'relu','logistic']}
+#best= (200, 100, 100), logistic
+
+mlp_std = cv_model(mlp_std_model, parameters, X_train_scaled, y_train)
+print_cv_result(mlp_std, 'KNN Regressor (PRE-PROCESSED DATA)')
+
+#questo è il migliore dei due neg-RMSE =  -6.497198276125597
+#ha impiegato circa 40 minuti
 
 
+# per l'ensamble utilizzo l'algoritmo di bagging, perchè nonostante il bias sia ancora abbastanza elevato,
+# i modelli utilizzati non sono weak (es. linear regression, o neural network con soltanto 1 neurone)
+# pertanto utilizzo un algotirmo di bagging per calare la varianza.
 
-#---------  5: MLPRegressor RAW ---------------------------------------------------------
+#---------  3: LASSO ENSEMBLE (PRE-PROCESSED) ---------------------------------------------------------
+lasso_ensemble = BaggingRegressor(lasso_std.best_estimator_, max_samples=0.875)
+lasso_ensemble.fit(X_train_scaled, y_train)
+y_pred_lasso_ensemble = lasso_ensemble.predict(X_test_scaled)
+np.sqrt(metrics.mean_squared_error(y_test, y_pred_lasso_ensemble))
 
-nn_model.fit(X_train_raw, y_train)
+#---------  6: KNN ENSEMBLE (RAW) ---------------------------------------------------------------------
+knn_ensemble = BaggingRegressor(knn_raw.best_estimator_, max_samples=0.875)
+knn_ensemble.fit(X_train_raw, y_train)
+y_pred_knn_ensemble = knn_ensemble.predict(X_test_raw)
+np.sqrt(metrics.mean_squared_error(y_test, y_pred_knn_ensemble))
 
 
+#---------  9: MLP ENSEMBLE (PRE-PROCESSED) -----------------------------------------------------------
+mlp_ensemble = BaggingRegressor(lasso_std.best_estimator_, max_samples=0.875)
+mlp_ensemble.fit(X_train_scaled, y_train)
+y_pred_mlp_ensemble = mlp_ensemble.predict(X_test_scaled)
+np.sqrt(metrics.mean_squared_error(y_test, y_pred_mlp_ensemble))
 
 
-#parameters = {'hidden_layer_sizes': ['linear'], 'activation': 'identity'}
-parameters = {'activation': ['identity', 'logistic', 'tanh', 'relu']}
+##################################################################################################################
+#                                           TRAINING + TEST                                                      #
+##################################################################################################################
 
-nn_raw = GridSearchCV(estimator=nn_model, param_grid=parameters, scoring='r2')
-nn_raw.fit(X_train_raw, y_train)
+# c'è bisogno di effettuare il re-training dei modelli perchè quando è stata effettuata
+# la model selection, gridSearchCV aveva di l'attributo Refit=False
+# Questo comporta che il refit sia necessario, utilizzando l'intero training-set.
+# Questa scelta è stata compiuta per effettuare il re-training manualmente in modo tale
+# da misurare i tempi di calcolo.
 
-print('NN With raw data')
-print('Overall, the best value for parameter activation is ', nn_raw.best_params_.get('activation'),
-      ' since it leads to r2-score = ', nn_raw.best_score_, '\n')
 
-#CI HA MESSO CIRCA 3 MINUTI E L'OUTPUT è STATO:
-#NN With raw data
-#Overall, the best value for parameter activation is  logistic  since it leads to r2-score =  0.06788356737736634
+official_lasso_raw = lasso_raw.best_estimator_
+official_lasso_std = lasso_std.best_estimator_
+official_lasso_ensemble = lasso_ensemble
+official_knn_raw = knn_raw.best_estimator_
+official_knn_std = knn_std.best_estimator_
+official_knn_ensemble = knn_ensemble
+official_mlp_raw = mlp_raw.best_estimator_
+official_mlp_std = mlp_std.best_estimator_
+official_mlp_ensemble = mlp_ensemble
 
-#DATI I TEMPI POSSO PERMETTERMI DI TESTARE MOLTI PIU' IPERPARAMETRI SULLA RETE NEURALE
+y_pred_lasso_raw = official_lasso_raw.predict(X_test_raw)
+y_pred_lasso_std = official_lasso_std.predict(X_test_scaled)
+y_pred_lasso_ensemble = official_lasso_ensemble.predict(X_test_scaled)
+
+y_pred_knn_raw = official_knn_raw.predict(X_test_raw)
+y_pred_knn_std = official_knn_std.predict(X_test_scaled)
+y_pred_knn_ensemble = official_knn_ensemble.predict(X_test_raw)
+
+y_pred_mlp_raw = official_mlp_raw.predict(X_test_raw)
+y_pred_mlp_std = official_mlp_std.predict(X_test_scaled)
+y_pred_mlp_ensemble = official_mlp_ensemble.predict(X_test_scaled)
 
