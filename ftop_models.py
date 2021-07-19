@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV, validation_c
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.ensemble import AdaBoostRegressor, BaggingRegressor
 from sklearn import metrics
+import time
 from yellowbrick.regressor import ResidualsPlot
 
 random_state = 17
@@ -140,7 +141,7 @@ mlp_std_model = MLPRegressor(early_stopping=True,
                              random_state=random_state)
 
 def cv_model(model, h_params, X_train, y_train):
-    model_cv = GridSearchCV(estimator=model, param_grid=h_params, scoring='neg_root_mean_squared_error')
+    model_cv = GridSearchCV(estimator=model, param_grid=h_params, scoring='neg_root_mean_squared_error', refit=False)
     print('Fitting all models ...  ...  ...')
     model_cv.fit(X_train, y_train)
     return model_cv
@@ -278,15 +279,120 @@ official_mlp_raw = mlp_raw.best_estimator_
 official_mlp_std = mlp_std.best_estimator_
 official_mlp_ensemble = mlp_ensemble
 
+#---------  1: LASSO RAW ---------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_lasso_raw.fit(X_train_raw, y_train)
+stop = time.perf_counter()
+lasso_raw_performance = stop - start
+
+#predict
 y_pred_lasso_raw = official_lasso_raw.predict(X_test_raw)
+print_metrics('LASSO RAW', y_test, y_pred_lasso_raw)
+
+#---------  2: LASSO PRE-PROCESSED -----------------------------------------------
+
+#train
+start = time.perf_counter()
+official_lasso_std.fit(X_train_scaled, y_train)
+stop = time.perf_counter()
+lasso_std_performance = stop - start
+
+#predict
 y_pred_lasso_std = official_lasso_std.predict(X_test_scaled)
+print_metrics('LASSO PRE-PROCESSED', y_test, y_pred_lasso_std)
+
+
+#---------  3: LASSO ENSEMBLE (PRE-PROCESSED) ---------------------------------------------------------
+
+start = time.perf_counter()
+official_lasso_ensemble.fit(X_train_scaled, y_train)
+stop = time.perf_counter()
+lasso_ensemble_performance = stop - start
+
+#predict
 y_pred_lasso_ensemble = official_lasso_ensemble.predict(X_test_scaled)
+print_metrics('LASSO ENSEMBLE PRE-PROCESSED', y_test, y_pred_lasso_ensemble)
 
+#---------  4: KNN RAW ---------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_knn_raw.fit(X_train_raw, y_train)
+stop = time.perf_counter()
+knn_raw_performance = stop - start
+
+#predict
 y_pred_knn_raw = official_knn_raw.predict(X_test_raw)
+print_metrics('KNN RAW', y_test, y_pred_knn_raw)
+
+
+
+#---------  5: KNN PRE-PROCESSED ---------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_knn_std.fit(X_train_scaled, y_train)
+stop = time.perf_counter()
+knn_std_performance = stop - start
+
+#predict
 y_pred_knn_std = official_knn_std.predict(X_test_scaled)
+print_metrics('KNN PRE-PROCESSED', y_test, y_pred_knn_std)
+
+#---------  6: KNN ENSEMBLE (RAW) ---------------------------------------------------------------------
+
+start = time.perf_counter()
+official_knn_ensemble.fit(X_train_raw, y_train)
+stop = time.perf_counter()
+knn_ensemble_performance = stop - start
+
+#predict
 y_pred_knn_ensemble = official_knn_ensemble.predict(X_test_raw)
+print_metrics('KNN ENSEMBLE RAW', y_test, y_pred_knn_ensemble)
 
+
+#---------  7: MLPRegressor RAW ---------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_mlp_raw.fit(X_train_raw, y_train)
+stop = time.perf_counter()
+mlp_raw_performance = stop - start
+
+#predict
 y_pred_mlp_raw = official_mlp_raw.predict(X_test_raw)
-y_pred_mlp_std = official_mlp_std.predict(X_test_scaled)
-y_pred_mlp_ensemble = official_mlp_ensemble.predict(X_test_scaled)
+print_metrics('MLP RAW', y_test, y_pred_mlp_raw)
 
+
+#---------  8: MLPRegressor PRE-PROCESSED ---------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_mlp_std.fit(X_train_scaled, y_train)
+stop = time.perf_counter()
+mlp_std_performance = stop - start
+
+#predict
+y_pred_mlp_std = official_mlp_std.predict(X_test_scaled)
+print_metrics('MLP PRE-PROCESSED', y_test, y_pred_mlp_std)
+
+
+#---------  9: MLP ENSEMBLE (PRE-PROCESSED) -----------------------------------------------------------
+
+#train
+start = time.perf_counter()
+official_mlp_ensemble.fit(X_train_scaled, y_train)
+stop = time.perf_counter()
+mlp_ensemble_performance = stop - start
+
+#predict
+y_pred_mlp_ensemble = official_mlp_ensemble.predict(X_test_scaled)
+print_metrics('MLP ENSEMBLE PRE-PROCESSED', y_test, y_pred_mlp_ensemble)
+
+##################################################################################################################
+#                                               EVALUATION                                                       #
+##################################################################################################################
+
+#GRAFICI, COFRONTI, TEMPI DI PERFORMANCE, EVALUATIONS FINALI
