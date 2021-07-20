@@ -2,16 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.neural_network import MLPRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV, validation_curve
-from sklearn.linear_model import Lasso, LinearRegression
-from sklearn.ensemble import AdaBoostRegressor, BaggingRegressor
+from sklearn.linear_model import Lasso
+from sklearn.ensemble import BaggingRegressor
 from sklearn import metrics
 import time
-from yellowbrick.regressor import ResidualsPlot
 
 random_state = 17
 np.random.seed(17)
@@ -141,7 +139,7 @@ mlp_std_model = MLPRegressor(early_stopping=True,
                              random_state=random_state)
 
 def cv_model(model, h_params, X_train, y_train):
-    model_cv = GridSearchCV(estimator=model, param_grid=h_params, scoring='neg_root_mean_squared_error', refit=False)
+    model_cv = GridSearchCV(estimator=model, param_grid=h_params, scoring='neg_root_mean_squared_error')
     print('Fitting all models ...  ...  ...')
     model_cv.fit(X_train, y_train)
     return model_cv
@@ -149,7 +147,7 @@ def cv_model(model, h_params, X_train, y_train):
 def print_cv_result(model_cv, desc):
     print(desc)
     for param in model_cv.best_params_.keys():
-        print('best -', param, 'is', model_cv.best_params_.get(param))
+        print('best', param, 'is -->', model_cv.best_params_.get(param))
     print('These parameters scored a negative-RMSE of -->', model_cv.best_score_, '\n')
 
 def print_metrics(desc, y_test, y_pred):
@@ -228,7 +226,7 @@ parameters = {'hidden_layer_sizes': h_layers, 'activation': ['identity','tanh', 
 #best= (200, 100, 100), logistic
 
 mlp_std = cv_model(mlp_std_model, parameters, X_train_scaled, y_train)
-print_cv_result(mlp_std, 'KNN Regressor (PRE-PROCESSED DATA)')
+print_cv_result(mlp_std, 'Neural-Network MLP Regressor (PRE-PROCESSED DATA)')
 
 #questo è il migliore dei due neg-RMSE =  -6.497198276125597
 #ha impiegato circa 40 minuti
@@ -240,22 +238,13 @@ print_cv_result(mlp_std, 'KNN Regressor (PRE-PROCESSED DATA)')
 
 #---------  3: LASSO ENSEMBLE (PRE-PROCESSED) ---------------------------------------------------------
 lasso_ensemble = BaggingRegressor(lasso_std.best_estimator_, max_samples=0.875)
-lasso_ensemble.fit(X_train_scaled, y_train)
-y_pred_lasso_ensemble = lasso_ensemble.predict(X_test_scaled)
-np.sqrt(metrics.mean_squared_error(y_test, y_pred_lasso_ensemble))
 
 #---------  6: KNN ENSEMBLE (RAW) ---------------------------------------------------------------------
 knn_ensemble = BaggingRegressor(knn_raw.best_estimator_, max_samples=0.875)
-knn_ensemble.fit(X_train_raw, y_train)
-y_pred_knn_ensemble = knn_ensemble.predict(X_test_raw)
-np.sqrt(metrics.mean_squared_error(y_test, y_pred_knn_ensemble))
 
 
 #---------  9: MLP ENSEMBLE (PRE-PROCESSED) -----------------------------------------------------------
 mlp_ensemble = BaggingRegressor(lasso_std.best_estimator_, max_samples=0.875)
-mlp_ensemble.fit(X_train_scaled, y_train)
-y_pred_mlp_ensemble = mlp_ensemble.predict(X_test_scaled)
-np.sqrt(metrics.mean_squared_error(y_test, y_pred_mlp_ensemble))
 
 
 ##################################################################################################################

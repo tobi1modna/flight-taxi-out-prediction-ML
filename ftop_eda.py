@@ -65,9 +65,12 @@ y = df[['date', 'TAXI_OUT']].groupby('date').mean()
 x = df.date.unique()
 
 # a graph to see the target trend over time (with mean foe each day)
+plt.figure(dpi=300)
 plt.plot_date(x=x,
               y=y,
-              fmt='k--x')
+              fmt='-x')
+plt.ylabel('TAXI_OUT')
+plt.title('Trend della media di TAXI_OUT nel tempo')
 plt.gcf().autofmt_xdate()
 plt.show()
 # non si vede alcun tipo di linearità
@@ -100,25 +103,33 @@ plt.show()
 # non si vede alcun tipo di linearità
 
 
-# pairplot
-# fig = plt.figure()
-# sns.pairplot(dummy_df)
-# plt.show()
-
 # quanto cambia la distribuzione considerando i giorni della settimana?
 
-df.groupby('DAY_OF_WEEK')['TAXI_OUT'].mean().plot.bar()
+plt.figure(figsize=(6,4))
+plt.ylabel('TAXI_OUT')
+df.groupby('DAY_OF_WEEK')['TAXI_OUT'].mean().plot.bar(color='tomato')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()  # all day of week are at 20 of TAXI OUT MEAN VALUE
 
-df.groupby('MONTH')['TAXI_OUT'].mean().plot.bar()
+plt.figure(figsize=(6,4))
+plt.ylabel('TAXI_OUT')
+df.groupby('MONTH')['TAXI_OUT'].mean().plot.bar(color='gold')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()  # all 3 months are at 20 of TAXI OUT MEAN VALUE
 
-df.groupby('DAY_OF_MONTH')['TAXI_OUT'].mean().plot.bar()
+plt.figure(figsize=(6,4))
+plt.ylabel('TAXI_OUT')
+df.groupby('DAY_OF_MONTH')['TAXI_OUT'].mean().plot.bar(color='#009966')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()
 
-df.groupby('OP_UNIQUE_CARRIER')['TAXI_OUT'].mean().plot.bar()
+plt.figure(figsize=(6,4))
+plt.ylabel('TAXI_OUT')
+df.groupby('OP_UNIQUE_CARRIER')['TAXI_OUT'].mean().plot.bar(color='dodgerblue')
+plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()
 # Notiamo da questo grafico che la compagnia che tiene il TAXI_OUT medio più alto è AS.
+# non ha importanza perchè le compagnie aeree sono sbilanciate.
 
 features = ['DISTANCE',
             'sch_dep',
@@ -130,6 +141,7 @@ df[features].plot(kind='density',
                   subplots=True,
                   layout=(2, 2),
                   sharex=False)
+plt.gcf().subplots_adjust(left=0.15)
 plt.show()
 
 sns.boxplot(x='TAXI_OUT',
