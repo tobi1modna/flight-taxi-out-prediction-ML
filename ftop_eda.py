@@ -31,6 +31,8 @@ print(df['TAXI_OUT'].value_counts())
 
 airlines = df['OP_UNIQUE_CARRIER'].unique()
 len(airlines)
+tail = df['TAIL_NUM'].unique()
+len(tail)
 counts = df['OP_UNIQUE_CARRIER'].value_counts()
 counts.plot(kind='barh')
 plt.show()
@@ -154,11 +156,13 @@ plt.show()
 
 # MATRICE DI CORRELAZIONE
 
-plt.figure(figsize = (20,17))
+plt.figure(figsize = (19,15), dpi=200)
 correlation_matrix = labeled_df.corr()
 sns.heatmap(correlation_matrix,
-            cmap='RdYlGn',
+            cmap='BuPu',
             annot = True)
+plt.gcf().subplots_adjust(bottom=0.15)
+
 plt.show()
 # we have a strong correlation between distance and elapsed time
 
@@ -208,14 +212,13 @@ sns.boxplot(x='NEW',
             data=num)
 plt.show()
 
-sns.pairplot(num, diag_kind = 'kde')
-#ax = pd.plotting.scatter_matrix(num,
-#                                alpha=0.75,
-#                                figsize=[20, 20],
-#                                diagonal='kde')
 
-plt.suptitle<('scatter and density plot')
+features_pairplot = ['DEP_DELAY', 'CRS_ELAPSED_TIME', 'DISTANCE', 'DEP_TIME_M', 'CRS_DEP_M', 'sch_dep', 'TAXI_OUT']
+
+sns.pairplot(num[features_pairplot], diag_kind = 'kde')
 plt.show()
+
+
 
 ax = sns.catplot(y="TAXI_OUT",
                  kind="count",
