@@ -1,10 +1,8 @@
-import numpy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestRegressor
 
 pd.set_option('display.expand_frame_repr',
               False)  # to show all the columns in the console
@@ -25,7 +23,6 @@ df.dropna(axis=0, inplace=True)
 
 df.describe(include=object)
 
-# some queries on target variable
 print(df['TAXI_OUT'].mean())
 print(df['TAXI_OUT'].value_counts())
 
@@ -38,14 +35,6 @@ counts.plot(kind='barh')
 plt.show()
 # VEDO CHE IL NUMERO DI FLIGHTS CHE ABBIAMO NON è BILANCIATISSIMO RISPETTO A QUALI COMPAGNIE CONSIDERIAMO
 
-#df['CRS_DEP_M'] = pd.to_datetime(df.CRS_DEP_M,
-                                 #unit='m').dt.strftime('%H:%M')
-#df['DEP_TIME_M'] = pd.to_datetime(df.DEP_TIME_M,
-                                  #unit='m').dt.strftime('%H:%M')
-#df['CRS_ELAPSED_TIME'] = pd.to_datetime(df.CRS_ELAPSED_TIME,
-                                        #unit='m').dt.strftime('%H:%M')
-#df['CRS_ARR_M'] = pd.to_datetime(df.CRS_ARR_M,
-                                 #unit='m').dt.strftime('%H:%M')
 print(df.head())
 
 df.drop('TAIL_NUM',
@@ -55,12 +44,12 @@ df.head()
 
 df['YEAR'] = np.where(df['MONTH'] == 1,
                       2020,
-                      2019)  # we have only january, december and november so if month == january then year = 2020
+                      2019)  # we have only january, december and november so if month == january then year = 2020 (these infos are on the link)
 df['date'] = pd.to_datetime(df.YEAR * 10000 + df.MONTH * 100 + df.DAY_OF_MONTH,
                             format='%Y%m%d')
 df.drop('YEAR',
-        axis = 1,
-        inplace = True)
+        axis=1,
+        inplace=True)
 df.head()
 
 y = df[['date', 'TAXI_OUT']].groupby('date').mean()
@@ -75,16 +64,15 @@ plt.ylabel('TAXI_OUT')
 plt.title('Trend della media di TAXI_OUT nel tempo')
 plt.gcf().autofmt_xdate()
 plt.show()
-# non si vede alcun tipo di linearità
+# non si vede alcun tipo di pattern
 
 
 df['Dew Point'] = df['Dew Point'].str.strip()
-
 df['Dew Point'] = df['Dew Point'].astype(int)
 df.info()
 print(df.dtypes)
 
-# dummizzazione con label encoder
+# label encoder per trasformare features categoriche (stringhe) in int
 labeled_df = df.copy()
 label_encoder = LabelEncoder()
 categorical = (labeled_df.dtypes == 'object')
@@ -107,25 +95,25 @@ plt.show()
 
 # quanto cambia la distribuzione considerando i giorni della settimana?
 
-plt.figure(figsize=(6,4))
+plt.figure(figsize=(6, 4))
 plt.ylabel('TAXI_OUT')
 df.groupby('DAY_OF_WEEK')['TAXI_OUT'].mean().plot.bar(color='tomato')
 plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()  # all day of week are at 20 of TAXI OUT MEAN VALUE
 
-plt.figure(figsize=(6,4))
+plt.figure(figsize=(6, 4))
 plt.ylabel('TAXI_OUT')
 df.groupby('MONTH')['TAXI_OUT'].mean().plot.bar(color='gold')
 plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()  # all 3 months are at 20 of TAXI OUT MEAN VALUE
 
-plt.figure(figsize=(6,4))
+plt.figure(figsize=(6, 4))
 plt.ylabel('TAXI_OUT')
 df.groupby('DAY_OF_MONTH')['TAXI_OUT'].mean().plot.bar(color='#009966')
 plt.gcf().subplots_adjust(bottom=0.15)
 plt.show()
 
-plt.figure(figsize=(6,4))
+plt.figure(figsize=(6, 4))
 plt.ylabel('TAXI_OUT')
 df.groupby('OP_UNIQUE_CARRIER')['TAXI_OUT'].mean().plot.bar(color='dodgerblue')
 plt.gcf().subplots_adjust(bottom=0.15)
@@ -149,18 +137,16 @@ plt.show()
 sns.boxplot(x='TAXI_OUT',
             data=df)
 
-sns.violinplot(data=df['TAXI_OUT'])
-plt.show()
-# notiamo che sulla variabil target i valori sono ben distribuiti e ci sono pochissimi outliers
+# notiamo che sulla variabile target i valori sono ben distribuiti e ci sono pochissimi outliers
 
 
 # MATRICE DI CORRELAZIONE
 
-plt.figure(figsize = (19,15), dpi=200)
+plt.figure(figsize=(19, 15), dpi=200)
 correlation_matrix = labeled_df.corr()
 sns.heatmap(correlation_matrix,
             cmap='BuPu',
-            annot = True)
+            annot=True)
 plt.gcf().subplots_adjust(bottom=0.15)
 
 plt.show()
@@ -183,84 +169,22 @@ plt.show()
 # ZERO CORRELATIONS WITH TARGET VARIABLE
 
 
-
-nums = ['DISTANCE',
-        'Temperature',
-        'Dew Point',
-        'Humidity',
-        'Wind Speed',
-        'Wind Gust',
-        'Pressure',
-        'sch_dep',
-        'sch_arr',
-        'TAXI_OUT']
-
-sns.set(style='ticks',
-        color_codes=True)
-
-sns.pairplot(df[nums])
-plt.show()
-
-
-
-# SCATTER AND DENSITY PLOT
 num = df.select_dtypes(include=[np.number])
 
-np.seterr(divide = 'ignore')
-num['NEW'] = np.sqrt(num['DEP_DELAY'])
-sns.boxplot(x='NEW',
-            data=num)
+# SCATTER AND DENSITY WITH ALL FEATURES
+sns.pairplot(num, diag_kind='kde')
 plt.show()
 
-
+# SCATTER AND DENSITY PLOT WITH ONLY SOME FEATURES
 features_pairplot = ['DEP_DELAY', 'CRS_ELAPSED_TIME', 'DISTANCE', 'DEP_TIME_M', 'CRS_DEP_M', 'sch_dep', 'TAXI_OUT']
 
-sns.pairplot(num[features_pairplot], diag_kind = 'kde')
+sns.pairplot(num[features_pairplot], diag_kind='kde')
 plt.show()
-
-
 
 ax = sns.catplot(y="TAXI_OUT",
                  kind="count",
                  data=df,
                  height=2.6,
                  aspect=2.5,
-                 orient='h')
-plt.show()
-
-df.shape
-
-# Feature Importance
-params = {'random_state': 0,
-          'n_jobs': 4,
-          'n_estimators': 5000,
-          'max_depth': 8}
-
-
-labeled_df.fillna(method='ffill', inplace=True)
-
-drop = ['TAXI_OUT',
-        'CRS_DEP_M',
-        'DEP_TIME_M',
-        'CRS_ELAPSED_TIME',
-        'CRS_ARR_M',
-        'date',
-        'YEAR']
-
-x, y = labeled_df.drop(drop,
-                       axis=1), \
-       labeled_df['TAXI_OUT']
-
-# Fit RandomForest Regressor
-clf = RandomForestRegressor(**params)
-clf = clf.fit(x, y)
-x.dtypes
-# Plot features importances
-imp = pd.Series(data=clf.feature_importances_, index=x.columns).sort_values(ascending=False)
-plt.figure(figsize=(10, 12))
-plt.title("Feature importance")
-ax = sns.barplot(y=imp.index,
-                 x=imp.values,
-                 palette="Blues_d",
                  orient='h')
 plt.show()
