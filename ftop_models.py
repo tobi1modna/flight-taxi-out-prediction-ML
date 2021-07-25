@@ -340,6 +340,7 @@ mlp_ensemble = BaggingRegressor(mlp_std.best_estimator_)
 
 # nonostante il parametro refit di gridsearch è stato lasciato di default su "True"
 # scelgo comunque di re-trainare tutti i modelli manualmente, in modo da poter misurare i tempi di calcolo.
+# ho deciso di lasciare refit a True perchà altrimenti non avrei l'attributo "best estimator"
 
 
 official_lasso_raw = lasso_raw.best_estimator_
